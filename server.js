@@ -15,6 +15,18 @@ app.get('/', (req, res) => {
     res.send('SovereignLab Habit Engine is Live 🚀');
 });
 
+// Meta Webhook Verification Route (GET)
+app.get('/api/log-habit', (req, res) => {
+    const mode = req.query['hub.mode'];
+    const token = req.query['hub.verify_token'];
+    const challenge = req.query['hub.challenge'];
+
+    if (mode === 'subscribe' && token === 'thesovereignlab123') {
+        return res.status(200).send(challenge);
+    }
+    return res.sendStatus(403);
+});
+
 // Main Webhook Receiver (Text / Voice Feedback)
 app.post('/api/log-habit', async (req, res) => {
     try {
