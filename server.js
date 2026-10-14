@@ -29,7 +29,48 @@ app.get('/webhook', (req, res) => {
     return res.sendStatus(403);
 });
 
-// Meta Webhook Receiver (POST) - placeholder, we fill this in Step 2
+// Voice note -> text (Meta download + Gemini transcription)
+async function transcribeAudio(mediaId) {
+    // 1. Get the download link from Meta
+    const metaRes = await fetch(`https://graph.facebook.com/v21.0/${mediaId}`, {
+        headers: { Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}` }
+    });
+    const meta = await metaRes.json();
+    if (!meta.url) throw new Error('No media url: ' + JSON.stringify(meta));
+
+    // 2. Download the audio
+    const audioRes = await fetch(meta.url, {
+        headers: { Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}` }
+    });
+    const buffer = Buffer.from(await audioRes.arrayBuffer());
+    const mimeType = (meta.mime_type || 'audio/ogg').split(';')[0];
+
+    // 3. Send to Gemini
+    const gemRes = await fetch(
+        'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
+        {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-goog-api-key': process.env.GEMINI_API_KEY
+            },
+            body: JSON.stringify({
+                contents: [{
+                    parts: [
+                        { text: 'Transcribe this voice note exactly. Keep the original language. Return only the transcript.' },
+                        { inline_data: { mime_type: mimeType, data: buffer.toString('base64') } }
+                    ]
+                }]
+            })
+        }
+    );
+    const gem = await gemRes.json();
+    const text = gem.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!text) throw new Error('Gemini failed: ' + JSON.stringify(gem));
+    return text.trim();
+}
+
+// Meta Webhook Receiver (POST) - text and voice notes
 app.post('/webhook', async (req, res) => {
     res.sendStatus(200); // answer Meta immediately
 
@@ -37,13 +78,20 @@ app.post('/webhook', async (req, res) => {
         const msg = req.body.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
         if (!msg) return; // status updates etc.
 
-        if (msg.type !== 'text') {
-            console.log('Non-text message, skipping for now:', msg.type);
+        const from = msg.from; // example: 94766094333
+        let text;
+        let voiceId = null;
+
+        if (msg.type === 'text') {
+            text = msg.text.body;
+        } else if (msg.type === 'audio') {
+            voiceId = msg.audio.id;
+            text = await transcribeAudio(voiceId);
+            console.log('Transcript:', text);
+        } else {
+            console.log('Skipping type:', msg.type);
             return;
         }
-
-        const from = msg.from; // example: 94766094333
-        const text = msg.text.body;
 
         const userQuery = await pool.query(
             `SELECT u.user_id, h.habit_id
@@ -64,7 +112,7 @@ app.post('/webhook', async (req, res) => {
         const insertQuery = await pool.query(
             `INSERT INTO daily_logs (user_id, habit_id, voice_url, transcript, is_completed, focus_score)
              VALUES ($1, $2, $3, $4, $5, $6) RETURNING log_id`,
-            [user_id, habit_id, null, text, true, 8]
+            [user_id, habit_id, voiceId, text, true, 8]
         );
 
         console.log('Habit logged! Log ID:', insertQuery.rows[0].log_id);
