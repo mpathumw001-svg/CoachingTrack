@@ -30,9 +30,47 @@ app.get('/webhook', (req, res) => {
 });
 
 // Meta Webhook Receiver (POST) - placeholder, we fill this in Step 2
-app.post('/webhook', (req, res) => {
-    console.log('Incoming webhook:', JSON.stringify(req.body));
-    res.sendStatus(200);
+app.post('/webhook', async (req, res) => {
+    res.sendStatus(200); // answer Meta immediately
+
+    try {
+        const msg = req.body.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
+        if (!msg) return; // status updates etc.
+
+        if (msg.type !== 'text') {
+            console.log('Non-text message, skipping for now:', msg.type);
+            return;
+        }
+
+        const from = msg.from; // example: 94766094333
+        const text = msg.text.body;
+
+        const userQuery = await pool.query(
+            `SELECT u.user_id, h.habit_id
+             FROM users u
+             JOIN habits h ON u.user_id = h.user_id
+             WHERE (u.phone_number = $1 OR u.phone_number = $2)
+             AND h.status = 'ACTIVE'`,
+            [from, '+' + from]
+        );
+
+        if (userQuery.rows.length === 0) {
+            console.log('No active user/habit for number:', from);
+            return;
+        }
+
+        const { user_id, habit_id } = userQuery.rows[0];
+
+        const insertQuery = await pool.query(
+            `INSERT INTO daily_logs (user_id, habit_id, voice_url, transcript, is_completed, focus_score)
+             VALUES ($1, $2, $3, $4, $5, $6) RETURNING log_id`,
+            [user_id, habit_id, null, text, true, 8]
+        );
+
+        console.log('Habit logged! Log ID:', insertQuery.rows[0].log_id);
+    } catch (err) {
+        console.error('Webhook error:', err);
+    }
 });
 
 // Main Log Route (Text / Voice Feedback)
