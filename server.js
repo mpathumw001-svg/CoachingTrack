@@ -242,5 +242,36 @@ app.get('/daily-check', async (req, res) => {
     }
 });
 
+// Send habit reminders to people whose reminder time just arrived
+app.get('/send-reminders', async (req, res) => {
+    if (req.query.key !== VERIFY_TOKEN) return res.sendStatus(403);
+    const force = req.query.force === '1'; // test mode: remind everyone now
+    try {
+        const result = await pool.query(
+            `SELECT u.phone_number
+             FROM users u
+             JOIN habits h ON u.user_id = h.user_id AND h.status = 'ACTIVE'
+             WHERE u.reminder_time IS NOT NULL
+               AND ($1 OR (
+                    u.reminder_time >  ((NOW() AT TIME ZONE 'Asia/Colombo')::time - INTERVAL '10 minutes')
+                AND u.reminder_time <= ((NOW() AT TIME ZONE 'Asia/Colombo')::time)
+               ))`,
+            [force]
+        );
+
+        for (const row of result.rows) {
+            const to = row.phone_number.replace('+', '');
+            await sendWhatsApp(
+                to,
+                '⏰ Time for your daily habit. Send a text or a voice note when you finish. Your coach is with you.'
+            );
+        }
+        res.json({ reminded: result.rows.length });
+    } catch (err) {
+        console.error('Reminder error:', err);
+        res.sendStatus(500);
+    }
+});
+
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
