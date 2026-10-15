@@ -165,5 +165,27 @@ app.post('/api/log-habit', async (req, res) => {
     }
 });
 
+// Red-flag call list: people silent for 2+ days
+app.get('/red-flags', async (req, res) => {
+    if (req.query.key !== VERIFY_TOKEN) return res.sendStatus(403);
+    try {
+        const result = await pool.query(
+            `SELECT u.user_id, u.phone_number,
+                    MAX(d.log_date) AS last_log,
+                    CURRENT_DATE - MAX(d.log_date) AS days_silent
+             FROM users u
+             JOIN habits h ON u.user_id = h.user_id AND h.status = 'ACTIVE'
+             LEFT JOIN daily_logs d ON d.user_id = u.user_id
+             GROUP BY u.user_id, u.phone_number
+             HAVING MAX(d.log_date) IS NULL
+                 OR CURRENT_DATE - MAX(d.log_date) >= 2`
+        );
+        res.json({ call_today: result.rows });
+    } catch (err) {
+        console.error('Red flag error:', err);
+        res.sendStatus(500);
+    }
+});
+
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
