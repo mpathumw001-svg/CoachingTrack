@@ -187,5 +187,60 @@ app.get('/red-flags', async (req, res) => {
     }
 });
 
+// Send a WhatsApp text message
+async function sendWhatsApp(to, body) {
+    const res = await fetch(
+        'https://graph.facebook.com/v21.0/1436877596166099/messages',
+        {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                messaging_product: 'whatsapp',
+                to,
+                type: 'text',
+                text: { body }
+            })
+        }
+    );
+    const data = await res.json();
+    if (!res.ok) throw new Error('Send failed: ' + JSON.stringify(data));
+    return data;
+}
+
+// Daily check: WhatsApp the coach the list of silent people
+app.get('/daily-check', async (req, res) => {
+    if (req.query.key !== VERIFY_TOKEN) return res.sendStatus(403);
+    const days = Number(req.query.days ?? 2);
+    try {
+        const result = await pool.query(
+            `SELECT u.phone_number,
+                    CURRENT_DATE - MAX(d.log_date) AS days_silent
+             FROM users u
+             JOIN habits h ON u.user_id = h.user_id AND h.status = 'ACTIVE'
+             LEFT JOIN daily_logs d ON d.user_id = u.user_id
+             GROUP BY u.phone_number
+             HAVING MAX(d.log_date) IS NULL
+                 OR CURRENT_DATE - MAX(d.log_date) >= $1`,
+            [days]
+        );
+
+        if (result.rows.length === 0) {
+            return res.json({ sent: false, reason: 'nobody silent' });
+        }
+
+        const lines = result.rows.map(r =>
+            `${r.phone_number}: ${r.days_silent ?? 'never logged'} days silent`
+        );
+        await sendWhatsApp('94766094333', '🚩 Call today:\n' + lines.join('\n'));
+        res.json({ sent: true, count: result.rows.length });
+    } catch (err) {
+        console.error('Daily check error:', err);
+        res.sendStatus(500);
+    }
+});
+
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
