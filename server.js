@@ -273,5 +273,27 @@ app.get('/send-reminders', async (req, res) => {
     }
 });
 
+app.get('/privacy', (req, res) => {
+    res.send(`<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy Policy - SovereignLab</title>
+<style>body{font-family:Arial,sans-serif;max-width:700px;margin:24px auto;padding:0 16px;line-height:1.6}</style>
+</head><body>
+<h1>Privacy Policy</h1>
+<p>Last updated: October 2026</p>
+<p>SovereignLab provides a habit coaching service over WhatsApp.</p>
+<h2>What we collect</h2>
+<p>Your phone number, your name, and the text messages and voice notes you send us about your habit.</p>
+<h2>How we use it</h2>
+<p>We use this information to remind you, track your habit progress, and give you coaching feedback. Voice notes are converted to text using Google's Gemini service.</p>
+<h2>Sharing</h2>
+<p>We never sell your data. We share it only with the services needed to run the coaching: WhatsApp (Meta), our database provider, and Google Gemini for transcription.</p>
+<h2>Storage and deletion</h2>
+<p>Your data is stored in a secured database. To delete your data, message us on WhatsApp at +94 70 514 8962 and we will remove it.</p>
+<h2>Contact</h2>
+<p>SovereignLab, Sri Lanka. WhatsApp: +94 70 514 8962. Website: sovereignlab.co</p>
+</body></html>`);
+});
+
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
