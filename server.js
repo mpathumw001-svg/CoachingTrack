@@ -294,6 +294,37 @@ app.get('/privacy', (req, res) => {
 <p>SovereignLab, Sri Lanka. WhatsApp: +94 70 514 8962. Website: sovereignlab.co</p>
 </body></html>`);
 });
+
+
+// Send an approved template (works outside the 24-hour window)
+async function sendTemplate(to, name) {
+    const res = await fetch(
+        'https://graph.facebook.com/v21.0/1436877596166099/messages',
+        {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                messaging_product: 'whatsapp',
+                to,
+                type: 'template',
+                template: {
+                    name: 'daily_habit_checkin',
+                    language: { code: 'en' },
+                    components: [{
+                        type: 'body',
+                        parameters: [{ type: 'text', parameter_name: 'customer_name', text: name }]
+                    }]
+                }
+            })
+        }
+    );
+    const data = await res.json();
+    if (!res.ok) throw new Error('Template failed: ' + JSON.stringify(data));
+    return data;
+}
 app.get('/test-template', async (req, res) => {
     if (req.query.key !== VERIFY_TOKEN) return res.sendStatus(403);
     try {
