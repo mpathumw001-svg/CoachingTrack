@@ -294,6 +294,16 @@ app.get('/privacy', (req, res) => {
 <p>SovereignLab, Sri Lanka. WhatsApp: +94 70 514 8962. Website: sovereignlab.co</p>
 </body></html>`);
 });
+app.get('/test-template', async (req, res) => {
+    if (req.query.key !== VERIFY_TOKEN) return res.sendStatus(403);
+    try {
+        const data = await sendTemplate(req.query.to, req.query.name || 'there');
+        res.json({ ok: true, data });
+    } catch (err) {
+        console.error('Template test error:', err);
+        res.status(500).send(err.message);
+    }
+});
 
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
