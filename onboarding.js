@@ -1,5 +1,6 @@
 // onboarding.js - welcomes new people, collects their details, alerts the coach
 module.exports = function ({ pool, sendWhatsApp, coachNumber }) {
+    const KEYWORD = 'PERFORM'; // the word the SovereignLab website sends
     const seen = new Set(); // stops double-processing if Meta resends a message
 
     async function alertCoach(text) {
@@ -61,10 +62,7 @@ module.exports = function ({ pool, sendWhatsApp, coachNumber }) {
         const row = r.rows[0];
 
         if (!row) {
-            if (!/^start\b/i.test(t)) {
-                await sendWhatsApp(from, 'Welcome to SovereignLab. Reply START to begin your free 7-day habit starter.');
-                return;
-            }
+            if (!new RegExp('^' + KEYWORD + '\\b', 'i').test(t)) return; // other messages (like Hastareka) are left alone
             await pool.query(
                 `INSERT INTO onboarding (phone_number, step) VALUES ($1, 'name')
                  ON CONFLICT (phone_number) DO UPDATE SET step = 'name'`, [phone]);
@@ -115,7 +113,7 @@ module.exports = function ({ pool, sendWhatsApp, coachNumber }) {
     // Called when the sender already has an active habit. Returns true if the message was a command.
     async function handleActiveUser(from, text, userId) {
         const t = text.trim().toUpperCase();
-        if (t === 'START') {
+        if (t === KEYWORD) {
             await sendWhatsApp(from, 'You are already in the program. Keep sending your daily check-ins. Reply COACH if you want 1-on-1 coaching.');
             return true;
         }
