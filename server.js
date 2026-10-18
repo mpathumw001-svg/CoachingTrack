@@ -10,6 +10,9 @@ const pool = new Pool({
     ssl: { rejectUnauthorized: false }
 });
 
+// New-member onboarding (see onboarding.js)
+const onboarding = require('./onboarding')({ pool, sendWhatsApp, coachNumber: '94766094333' });
+
 const VERIFY_TOKEN = process.env.VERIFY_TOKEN || 'thesovereignlab123';
 
 // Health Check Route
@@ -102,12 +105,16 @@ app.post('/webhook', async (req, res) => {
             [from, '+' + from]
         );
 
+        // New person: hand over to onboarding (only reacts to PERFORM or COACH)
         if (userQuery.rows.length === 0) {
-            console.log('No active user/habit for number:', from);
+            await onboarding.handle(from, text, msg.id);
             return;
         }
 
         const { user_id, habit_id } = userQuery.rows[0];
+
+        // Existing member sent a command (PERFORM or COACH): handled, do not log it
+        if (await onboarding.handleActiveUser(from, text, user_id)) return;
 
         const insertQuery = await pool.query(
             `INSERT INTO daily_logs (user_id, habit_id, voice_url, transcript, is_completed, focus_score)
@@ -243,6 +250,7 @@ app.get('/daily-check', async (req, res) => {
 });
 
 // Send habit reminders to people whose reminder time just arrived
+// (uses each person's own timezone; Sri Lanka time if none is saved)
 app.get('/send-reminders', async (req, res) => {
     if (req.query.key !== VERIFY_TOKEN) return res.sendStatus(403);
     const force = req.query.force === '1'; // test mode: remind everyone now
@@ -253,8 +261,8 @@ app.get('/send-reminders', async (req, res) => {
              JOIN habits h ON u.user_id = h.user_id AND h.status = 'ACTIVE'
              WHERE u.reminder_time IS NOT NULL
                AND ($1 OR (
-                    u.reminder_time >  ((NOW() AT TIME ZONE 'Asia/Colombo')::time - INTERVAL '10 minutes')
-                AND u.reminder_time <= ((NOW() AT TIME ZONE 'Asia/Colombo')::time)
+                    u.reminder_time >  ((NOW() AT TIME ZONE COALESCE(u.timezone, 'Asia/Colombo'))::time - INTERVAL '10 minutes')
+                AND u.reminder_time <= ((NOW() AT TIME ZONE COALESCE(u.timezone, 'Asia/Colombo'))::time)
                ))`,
             [force]
         );
