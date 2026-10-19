@@ -66,7 +66,9 @@ module.exports = function ({ pool, sendWhatsApp, coachNumber }) {
             await pool.query(
                 `INSERT INTO onboarding (phone_number, step) VALUES ($1, 'name')
                  ON CONFLICT (phone_number) DO UPDATE SET step = 'name'`, [phone]);
-            await sendWhatsApp(from, 'Welcome to SovereignLab. I am Pathum’s habit coach. Let’s set up your free 7-day starter. It takes one minute.\n\nFirst, what is your name?');
+
+            await sendWhatsApp(from, 'ආයුබෝවන්! 👋 මම SovereignLab එකේ Habit Coach, Pathum ගේ AI සහායකයා.\n\nමෙහෙමයි වැඩේ:\n1️⃣ ඔයා හදන්න කැමති එක හොඳ පුරුද්ද තෝරනවා\n2️⃣ හැමදාම කරන්න පුළුවන් වෙලාවක් දෙනවා\n3️⃣ ඒ වෙලාවට මම මතක් කරනවා. කළාම voice note එකක් හෝ කෙටි message එකක් එවන්න\n4️⃣ දවස් 2ක් මග හැරියොත් Pathum පෞද්ගලිකවම ඔයාට කතා කරනවා 📞\n\nමුලින් නොමිලේ දවස් 7ක ආරම්භයක්. ඊට පස්සේ Pathum ඔයාට දින 45 වැඩසටහන ගැන කියනවා (රු. 5,000).\n\nPathum එක්ක කෙලින්ම කතා කරන්න ඕනේ නම් ඕනෑම වෙලාවක COACH කියලා ලියන්න.\n\nපටන් ගමු! ඔයාගේ නම මොකක්ද?');
+          //  await sendWhatsApp(from, 'Welcome to SovereignLab. I am Pathum’s habit coach. Let’s set up your free 7-day starter. It takes one minute.\n\nFirst, what is your name?');
             return;
         }
 
