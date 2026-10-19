@@ -13,7 +13,8 @@ const pool = new Pool({
 // New-member onboarding (see onboarding.js)
 const onboarding = require('./onboarding')({ pool, sendWhatsApp, coachNumber: '94766094333' });
 
-const VERIFY_TOKEN = process.env.VERIFY_TOKEN || 'thesovereignlab123';
+const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
+if (!VERIFY_TOKEN) { console.error('VERIFY_TOKEN is missing'); process.exit(1); }
 
 // Health Check Route
 app.get('/', (req, res) => {
