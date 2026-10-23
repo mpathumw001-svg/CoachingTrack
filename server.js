@@ -252,12 +252,14 @@ app.get('/daily-check', async (req, res) => {
 
 // Send habit reminders to people whose reminder time just arrived
 // (uses each person's own timezone; Sri Lanka time if none is saved)
+// If one person's message fails (for example the 24-hour window is closed),
+// the approved template is tried, and the others still get their reminder.
 app.get('/send-reminders', async (req, res) => {
     if (req.query.key !== VERIFY_TOKEN) return res.sendStatus(403);
     const force = req.query.force === '1'; // test mode: remind everyone now
     try {
         const result = await pool.query(
-            `SELECT u.phone_number
+            `SELECT u.phone_number, u.name
              FROM users u
              JOIN habits h ON u.user_id = h.user_id AND h.status = 'ACTIVE'
              WHERE u.reminder_time IS NOT NULL
@@ -268,14 +270,28 @@ app.get('/send-reminders', async (req, res) => {
             [force]
         );
 
+        let sent = 0;
+        let failed = 0;
         for (const row of result.rows) {
             const to = row.phone_number.replace('+', '');
-            await sendWhatsApp(
-                to,
-                '⏰ Time for your daily habit. Send a text or a voice note when you finish. Your coach is with you.'
-            );
+            try {
+                await sendWhatsApp(
+                    to,
+                    '⏰ Time for your daily habit. Send a text or a voice note when you finish. Your coach is with you.'
+                );
+                sent++;
+            } catch (err) {
+                console.error('Reminder text failed for', to, '- trying template:', err.message);
+                try {
+                    await sendTemplate(to, row.name || 'there');
+                    sent++;
+                } catch (err2) {
+                    failed++;
+                    console.error('Reminder template failed for', to, ':', err2.message);
+                }
+            }
         }
-        res.json({ reminded: result.rows.length });
+        res.json({ reminded: sent, failed });
     } catch (err) {
         console.error('Reminder error:', err);
         res.sendStatus(500);
