@@ -62,15 +62,12 @@ module.exports = function ({ pool, sendWhatsApp, coachNumber }) {
         const row = r.rows[0];
 
         if (!row) {
-            if (!new RegExp('^' + KEYWORD + '\\b', 'i').test(t)) return; // other messages (like Hastareka) are left alone
+            if (!new RegExp('^' + KEYWORD + '\\b', 'i').test(t)) return; // other messages are left alone
             await pool.query(
                 `INSERT INTO onboarding (phone_number, step) VALUES ($1, 'name')
                  ON CONFLICT (phone_number) DO UPDATE SET step = 'name'`, [phone]);
 
-await sendWhatsApp(from, 'Welcome to SovereignLab 👋 I am Pathum’s AI habit coach.\n\nHow it works:\n1️⃣ You choose ONE habit\n2️⃣ You choose a daily time\n3️⃣ I remind you at that time. When you finish, send a short text or a voice note (සිංහලෙන් voice note එකක් එවන්නත් පුළුවන්)\n4️⃣ If you miss 2 days, Pathum personally calls you 📞\n\nThe first 7 days are free. After that, Pathum will tell you about the 45-day program (LKR 4999).\n\nWant to talk to Pathum anytime? Reply COACH.\n\nLet’s start! What is your name?');
-            
-         //   await sendWhatsApp(from, 'ආයුබෝවන්! 👋 මම SovereignLab එකේ Habit Coach, Pathum ගේ AI සහායකයා.\n\nමෙහෙමයි වැඩේ:\n1️⃣ ඔයා හදන්න කැමති එක හොඳ පුරුද්ද තෝරනවා\n2️⃣ හැමදාම කරන්න පුළුවන් වෙලාවක් දෙනවා\n3️⃣ ඒ වෙලාවට මම මතක් කරනවා. කළාම voice note එකක් හෝ කෙටි message එකක් එවන්න\n4️⃣ දවස් 2ක් මග හැරියොත් Pathum පෞද්ගලිකවම ඔයාට කතා කරනවා 📞\n\nමුලින් නොමිලේ දවස් 7ක ආරම්භයක්. ඊට පස්සේ Pathum ඔයාට දින 45 වැඩසටහන ගැන කියනවා (රු. 5,000).\n\nPathum එක්ක කෙලින්ම කතා කරන්න ඕනේ නම් ඕනෑම වෙලාවක COACH කියලා ලියන්න.\n\nපටන් ගමු! ඔයාගේ නම මොකක්ද?');
-          //  await sendWhatsApp(from, 'Welcome to SovereignLab. I am Pathum’s habit coach. Let’s set up your free 7-day starter. It takes one minute.\n\nFirst, what is your name?');
+            await sendWhatsApp(from, 'Welcome to The SovereignLab 👋 I am Pathum’s AI habit coach.\n\nYour 45-day Habit Lock-In starts now. Here is how it works:\n1️⃣ You choose ONE habit\n2️⃣ You choose a daily time\n3️⃣ I remind you at that time. When you finish, send a short text or a voice note (සිංහලෙන් voice note එකක් එවන්නත් පුළුවන්)\n4️⃣ If you miss 2 days, Pathum personally calls you 📞\n\nWant to talk to Pathum anytime? Reply COACH.\n\nLet’s start! What is your name?');
             return;
         }
 
@@ -109,7 +106,7 @@ await sendWhatsApp(from, 'Welcome to SovereignLab 👋 I am Pathum’s AI habit 
             await pool.query("INSERT INTO habits (user_id, status, habit_name) VALUES ($1, 'ACTIVE', $2)", [userId, row.habit_name]);
             await pool.query('DELETE FROM onboarding WHERE phone_number=$1', [phone]);
 
-            await sendWhatsApp(from, `Done, ${row.name}. Your habit: ${row.habit_name}.\n\nEvery day at ${hhmm} (${row.timezone}) I will remind you. When you finish, send a voice note or a short text. After 7 days you get your first progress report.`);
+            await sendWhatsApp(from, `Done, ${row.name}. Your habit: ${row.habit_name}.\n\nEvery day at ${hhmm} (${row.timezone}) I will remind you. When you finish, send a voice note or a short text. If you miss 2 days, Pathum will call you.`);
             await alertCoach(`🆕 New member\nName: ${row.name}\nPhone: ${phone}\nHabit: ${row.habit_name}\nReminder: ${hhmm} (${row.timezone})`);
         }
     }
